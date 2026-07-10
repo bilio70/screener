@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1b2433;
+    --bg-grad:#212c3e;
+    --panel:#26324a;
+    --panel-alt:#2f3d59;
+    --border:#3a4a6b;
+    --text:#eef2f8;
+    --text-muted:#9fb0cc;
+    --up:#ff5b62;
+    --down:#5b9dff;
+    --gold:#e0b155;
+    --accent:#57c8c0;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;
+    background:linear-gradient(180deg,var(--bg-grad) 0%,var(--bg) 320px) fixed,var(--bg);
+    color:var(--text);font-family:"Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:"JetBrains Mono",monospace;}
+  h1,h2,h3,.wordmark{font-family:"Zen Kaku Gothic New",sans-serif;}
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:rgba(224,177,85,.35);}
+  a{color:var(--gold);}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+  #loginGate{position:fixed;inset:0;background:radial-gradient(1200px 600px at 20% -10%, #2b3852 0%, var(--bg) 60%);
+    display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .loginCard{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--border);
+    border-radius:var(--radius);padding:32px 28px;}
+  .loginCard .wordmark{font-size:28px;font-weight:900;letter-spacing:.02em;margin:0 0 4px;}
+  .loginCard .tagline{color:var(--text-muted);font-size:13px;margin:0 0 24px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;}
+  .field input{width:100%;padding:10px 12px;background:var(--panel-alt);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:14px;}
+  .btn{border:none;border-radius:8px;padding:11px 16px;font-size:14px;font-weight:700;
+    background:var(--gold);color:#20180a;transition:filter .15s;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.full{width:100%;}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border);font-weight:500;}
+  .btn.accent{background:var(--accent);color:#0c2523;}
+  .loginError{color:var(--up);font-size:13px;margin:8px 0 0;min-height:1.2em;}
+
+  #app{display:none;max-width:1000px;margin:0 auto;padding:0 16px 80px;}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(27,36,51,.92);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border);}
+  header.top .wordmark{font-size:22px;font-weight:900;margin:0;}
+  header.top .meta{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  header.top .userbox{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-muted);}
+  header.top .userbox button{background:none;border:none;color:var(--text-muted);text-decoration:underline;font-size:12px;padding:0;}
+
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:14px 0 4px;}
+  .presetRow{display:flex;gap:8px;overflow-x:auto;flex:1;}
+  .chip{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--border);
+    background:var(--panel);color:var(--text);font-size:13px;font-weight:500;white-space:nowrap;}
+  .chip.active{background:var(--gold);color:#20180a;border-color:var(--gold);}
+  .resetBtn{flex:0 0 auto;padding:8px 16px;border-radius:999px;border:1px solid var(--up);
+    background:transparent;color:var(--up);font-size:13px;font-weight:700;white-space:nowrap;}
+  .resetBtn:hover{background:rgba(255,91,98,.12);}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:14px;}
+  .rangeRow{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
+  .rangeRow .field{margin:0;flex:1 1 130px;}
+  .rangeRow input[type=date]{width:100%;padding:9px 10px;background:var(--panel-alt);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:13px;color-scheme:dark;}
+
+  .sectionLabel{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;
+    margin:18px 0 8px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+  .sectionLabel .arrow{transition:transform .15s;}
+  .sectionLabel.collapsed .arrow{transform:rotate(-90deg);}
+
+  .condGrid{display:grid;grid-template-columns:1fr;gap:8px;}
+  .condCard{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);
+    border-radius:8px;background:var(--panel-alt);}
+  .condCard.disabled{opacity:.5;}
+  .condCard .num{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--gold);padding-top:2px;min-width:22px;}
+  .condCard .body{flex:1;}
+  .condCard .label{font-size:13px;line-height:1.7;}
+  .condCard input[type=number]{width:66px;padding:5px 7px;background:var(--panel);border:1px solid var(--border);
+    border-radius:6px;color:var(--text);font-family:"JetBrains Mono",monospace;font-size:13px;margin:0 4px;}
+  .condCard select{padding:5px 7px;background:var(--panel);border:1px solid var(--border);
+    border-radius:6px;color:var(--text);font-size:13px;margin:0 4px;}
+  .condCard .multiWrap{display:inline-flex;flex-wrap:wrap;gap:6px;margin:2px 4px;vertical-align:middle;}
+  .condCard .multiWrap label{display:inline-flex;align-items:center;gap:4px;font-size:12px;
+    background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;}
+  .condCard .multiWrap input{margin:0;accent-color:var(--gold);}
+  .sectorBtn{padding:4px 10px;background:var(--panel);border:1px solid var(--border);border-radius:6px;
+    color:var(--text);font-size:12px;margin:0 4px;}
+
+  .toggle{position:relative;width:38px;height:22px;flex:0 0 auto;margin-top:1px;}
+  .toggle input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:2;}
+  .toggle .track{position:absolute;inset:0;background:var(--border);border-radius:999px;transition:background .15s;pointer-events:none;}
+  .toggle .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text-muted);transition:transform .15s,background .15s;pointer-events:none;}
+  .toggle input:checked + .track{background:var(--gold);}
+  .toggle input:checked ~ .knob{transform:translateX(16px);background:#20180a;}
+
+  .savedRow{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .savedRow select{flex:1;min-width:140px;padding:9px 10px;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;}
+
+  .searchBtnWrap{display:flex;gap:8px;margin-top:14px;}
+  .errorBox{background:rgba(255,91,98,.12);border:1px solid rgba(255,91,98,.45);color:var(--up);
+    padding:12px 14px;border-radius:8px;font-size:13px;margin-top:14px;}
+
+  .resultsMeta{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;flex-wrap:wrap;gap:8px;}
+  .resultsMeta .count{font-size:13px;color:var(--text-muted);}
+  .resultsMeta .count b{color:var(--text);font-family:"JetBrains Mono",monospace;}
+
+  .tableWrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{position:sticky;top:0;background:var(--panel-alt);text-align:right;padding:10px 12px;
+    font-size:11px;color:var(--text-muted);font-weight:500;white-space:nowrap;border-bottom:1px solid var(--border);
+    cursor:pointer;user-select:none;}
+  thead th:first-child,thead th:nth-child(2){text-align:left;}
+  thead th .sortArrow{display:inline-block;margin-left:3px;font-size:9px;opacity:.4;}
+  thead th.sorted .sortArrow{opacity:1;color:var(--gold);}
+  tbody td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border);font-family:"JetBrains Mono",monospace;}
+  tbody td:first-child{font-family:"JetBrains Mono",monospace;color:var(--gold);text-align:left;}
+  tbody td:nth-child(2){font-family:"Noto Sans JP",sans-serif;text-align:left;color:var(--text);
+    white-space:normal;max-width:150px;min-width:110px;line-height:1.35;word-break:break-all;}
+  thead th:nth-child(2){white-space:normal;max-width:150px;}
+  tbody tr:hover{background:var(--panel-alt);}
+  .up{color:var(--up);}
+  .down{color:var(--down);}
+  .flag{display:inline-block;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;
+    background:rgba(224,177,85,.2);color:var(--gold);font-family:"Noto Sans JP",sans-serif;}
+
+  .emptyState{padding:60px 20px;text-align:center;color:var(--text-muted);font-size:13px;}
+  .emptyState .big{font-size:32px;margin-bottom:10px;}
+  .loadingState{padding:60px 20px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+  .modalBg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modalBg.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    max-width:520px;width:100%;max-height:80vh;overflow:auto;padding:20px;}
+  .modal h3{margin:0 0 14px;font-size:16px;}
+  .modal .secGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .modal .secGrid label{display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px;
+    border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel-alt);}
+  .modal .secGrid input{accent-color:var(--gold);}
+  .modal .modalFooter{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+  @media (max-width:600px){
+    thead th,tbody td{padding:8px 8px;font-size:12px;}
+    .loginCard{padding:26px 20px;}
+    .modal .secGrid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="loginCard">
+    <p class="wordmark">Screener</p>
+    <p class="tagline">株式スクリーニングツール</p>
+    <form id="loginForm">
+      <div class="field"><label for="loginId">ID</label>
+        <input type="text" id="loginId" autocomplete="username" required></div>
+      <div class="field"><label for="loginPass">パスワード</label>
+        <input type="password" id="loginPass" autocomplete="current-password" required></div>
+      <button type="submit" class="btn full" id="loginBtn">ログイン</button>
+      <p class="loginError" id="loginError"></p>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <header class="top">
+    <div><p class="wordmark">Screener</p><p class="meta" id="headerMeta">—</p></div>
+    <div class="userbox"><span id="userIdLabel"></span><button id="logoutBtn">ログアウト</button></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="presetRow" id="presetRow"></div>
+    <button class="resetBtn" id="resetBtn">↺ リセット</button>
+  </div>
+
+  <div class="panel">
+    <div class="rangeRow">
+      <div class="field"><label for="fromDate">抽出対象日(開始)</label><input type="date" id="fromDate"></div>
+      <div class="field"><label for="toDate">抽出対象日(終了)</label><input type="date" id="toDate"></div>
+    </div>
+    <div class="sectionLabel" data-target="basicCond"><span class="arrow">▾</span> よく使う条件</div>
+    <div class="condGrid" id="basicCond"></div>
+    <div class="sectionLabel collapsed" data-target="advCond"><span class="arrow">▾</span> 詳細条件</div>
+    <div class="condGrid" id="advCond" style="display:none;"></div>
+    <div class="savedRow">
+      <select id="savedSelect"><option value="">保存した検索条件を呼び出し...</option></select>
+      <button class="btn ghost" id="saveCondBtn">この条件を保存</button>
+      <button class="btn ghost" id="deleteCondBtn">削除</button>
+    </div>
+    <div class="searchBtnWrap"><button class="btn full" id="searchBtn">検索</button></div>
+    <div class="errorBox" id="errorBox" style="display:none;"></div>
+  </div>
+
+  <div class="resultsMeta" id="resultsMeta" style="display:none;">
+    <div class="count">対象<b id="metaDays">0</b>営業日 / <b id="metaHits">0</b>銘柄ヒット</div>
+    <div class="count" style="font-size:11px;">列見出しをクリックで並べ替え</div>
+  </div>
+
+  <div id="resultsArea">
+    <div class="emptyState"><div class="big">🔍</div>条件を選んで「検索」を押すと、ここに該当銘柄が表示されます。</div>
+  </div>
+</div>
+
+<div class="modalBg" id="sectorModal">
+  <div class="modal">
+    <h3>業種を選択</h3>
+    <div class="secGrid" id="sectorGrid"></div>
+    <div class="modalFooter">
+      <button class="btn ghost" id="sectorClear">クリア</button>
+      <button class="btn accent" id="sectorApply">適用</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+var GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyJ4ao8viO_KPSh9hNnWYX4FaAX3RegWNJdXYhTtD9QEe6Oj3KFIzkc0EgVw07Fw6TB/exec';
+
+var SECTORS_33 = [
+  '水産・農林業','鉱業','建設業','食料品','繊維製品','パルプ・紙','化学','医薬品',
+  '石油・石炭製品','ゴム製品','ガラス・土石製品','鉄鋼','非鉄金属','金属製品','機械',
+  '電気機器','輸送用機器','精密機器','その他製品','電気・ガス業','陸運業','海運業',
+  '空運業','倉庫・運輸関連業','情報・通信業','卸売業','小売業','銀行業','証券、商品先物取引業',
+  '保険業','その他金融業','不動産業','サービス業'
+];
+
+function emptyToNull(v){ return (v===null||v===undefined||v==='')?null:v; }
+
+/** 5,10,15,...,max の配列を作る(条件18の日数選択用) */
+function makeStep5(max){ var a=[]; for(var i=5;i<=max;i+=5) a.push(i); return a; }
+
+var CONDITIONS_DEF = [
+  { id:'c01', group:'basic', label:'当日出来高が、出来高の<N>本移動平均線の<PCT>%以上',
+    fields:[{key:'n',type:'select',options:[5,10,20,40,60],default:40},{key:'pct',type:'number',default:200,min:0}],
+    build:function(v){return {n:v.n,pct:v.pct};} },
+  { id:'c02', group:'adv', label:'当日出来高が、出来高の<N>本移動平均線の<PCT>%以下',
+    fields:[{key:'n',type:'select',options:[1,2,3,4,5,10,20,40,60],default:5},{key:'pct',type:'number',default:20,min:0}],
+    build:function(v){return {n:v.n,pct:v.pct};} },
+  { id:'c03', group:'basic', label:'出来高<N>本移動平均線の値が<MAN>万株以上',
+    fields:[{key:'n',type:'select',options:[1,2,3,4,5,10,20,40,60],default:20},{key:'man',type:'number',default:20,min:0}],
+    build:function(v){return {n:v.n,man:v.man};} },
+  { id:'c04', group:'adv', label:'取引高<N>本移動平均線の値が<SENMAN>千万円以上',
+    fields:[{key:'n',type:'select',options:[1,2,3,4,5,10,20,40,60],default:20},{key:'senman',type:'number',default:20,min:0}],
+    build:function(v){return {n:v.n,senman:v.senman};} },
+  { id:'c05', group:'basic', label:'時価総額<MIN>億円以上 <MAX>億円以下(空欄可)',
+    fields:[{key:'min',type:'number',default:50,min:0},{key:'max',type:'number',default:null,allowEmpty:true}],
+    build:function(v){return {min:v.min,max:emptyToNull(v.max)};} },
+  { id:'c06', group:'basic', label:'株価<MIN>円以上 <MAX>円以下(空欄可)',
+    fields:[{key:'min',type:'number',default:200,min:0},{key:'max',type:'number',default:20000,allowEmpty:true}],
+    build:function(v){return {min:v.min,max:emptyToNull(v.max)};} },
+  { id:'c07', group:'basic', label:'終値が<N>本移動平均線の<SIDE>',
+    fields:[{key:'n',type:'select',options:[2,3,5,10,20],default:5},{key:'side',type:'select2',options:[['high','上'],['low','下']],default:'high'}],
+    build:function(v){return {n:v.n,side:v.side};} },
+  { id:'c08', group:'basic', label:'信用区分が<CODE>',
+    fields:[{key:'code',type:'select2',options:[[2,'貸借銘柄'],[1,'信用銘柄'],[0,'信用不可銘柄']],default:2}],
+    build:function(v){return {code:v.code};} },
+  { id:'c17', group:'basic', label:'市場区分が<MARKETS>',
+    fields:[{key:'markets',type:'multi',options:[['プライム','プライム'],['スタンダード','スタンダード'],['グロース','グロース']],default:['プライム']}],
+    build:function(v){return {markets:(v.markets&&v.markets.length)?v.markets:['プライム','スタンダード','グロース']};} },
+  { id:'c19', group:'basic', label:'業種が<SECTORS>',
+    fields:[{key:'sectors',type:'sector',default:[]}],
+    build:function(v){return {sectors:v.sectors||[]};} },
+  { id:'c18', group:'basic', label:'<N>営業日間で<PCT>%以上 上昇',
+    fields:[{key:'n',type:'select_or_input',options:makeStep5(100),default:20},{key:'pct',type:'number',default:20,min:0}],
+    build:function(v){return {n:v.n,pct:v.pct};} },
+  { id:'c24', group:'basic', label:'連騰(前日比プラス)が<N>営業日以上連続',
+    fields:[{key:'n',type:'number',default:3,min:1}], build:function(v){return {n:v.n};} },
+  { id:'c20', group:'basic', label:'上場来高値を更新',
+    fields:[], build:function(){return true;} },
+  { id:'c21', group:'basic', label:'高値ブレイク(直近20日の高値を終値で上抜け)',
+    fields:[], build:function(){return true;} },
+  { id:'c22', group:'basic', label:'三角保ち合い(値幅収束中)。値幅<MAXR>%以下に限定(空欄可)',
+    fields:[{key:'maxRangePct',type:'number',default:null,allowEmpty:true,min:0}],
+    build:function(v){return {maxRangePct:emptyToNull(v.maxRangePct)};} },
+  { id:'c23', group:'basic', label:'三角保ち合いから上抜けブレイク',
+    fields:[], build:function(){return true;} },
+  { id:'c15', group:'basic', label:'年初来上昇率<PCT>%以上',
+    fields:[{key:'pct',type:'number',default:1,min:-100}], build:function(v){return {pct:v.pct};} },
+  { id:'c09', group:'adv', label:'上場後<DAYS>日以内',
+    fields:[{key:'days',type:'number',default:60,min:0}], build:function(v){return {days:v.days};} },
+  { id:'c10', group:'adv', label:'前日終値 ＜ 当日始値 かつ 陽線が3営業日以上継続中',
+    fields:[], build:function(){return true;} },
+  { id:'c11', group:'adv', label:'週足の陽線連続本数<N>本以上',
+    fields:[{key:'n',type:'number',default:1,min:1}], build:function(v){return {n:v.n};} },
+  { id:'c12', group:'adv', label:'週足の陰線連続本数<N>本以上',
+    fields:[{key:'n',type:'number',default:1,min:1}], build:function(v){return {n:v.n};} },
+  { id:'c13', group:'adv', label:'月足の陽線連続本数<N>本以上',
+    fields:[{key:'n',type:'number',default:1,min:1}], build:function(v){return {n:v.n};} },
+  { id:'c14', group:'adv', label:'月足の陰線連続本数<N>本以上',
+    fields:[{key:'n',type:'number',default:1,min:1}], build:function(v){return {n:v.n};} },
+  { id:'c16', group:'adv', label:'傾き<SLOPE>%<OVER>、直線率<R2>%以上',
+    fields:[{key:'slope',type:'select',options:[20,10,5,3,0,-3,-5,-10,-20],default:0},
+            {key:'over',type:'select2',options:[[true,'以上'],[false,'以下']],default:true},
+            {key:'r2',type:'select',options:[0,10,20,30,40,50,60,70,80,90,100],default:0}],
+    build:function(v){return {slope:v.slope,over:v.over,r2:v.r2};} },
+];
+
+var PRESETS = {
+  '急騰': { c01:{n:5,pct:100}, c03:{n:20,man:1}, c06:{min:1000,max:null}, c07:{n:5,side:'high'}, c18:{n:5,pct:15} },
+  '安定上昇': { c01:{n:60,pct:20}, c06:{min:500,max:null}, c07:{n:2,side:'high'}, c15:{pct:1}, c16:{slope:5,over:true,r2:60} },
+  '陽線連続': { c06:{min:200,max:null}, c07:{n:10,side:'high'}, c10:true, c15:{pct:1} },
+  '下落': { c07:{n:10,side:'low'}, c16:{slope:0,over:false,r2:10} },
+  '別銘柄化': { c01:{n:5,pct:60}, c06:{min:200,max:null}, c20:true, c21:true },
+  '高値更新': { c06:{min:300,max:null}, c17:{markets:['プライム','スタンダード','グロース']}, c20:true },
+  'ブレイク': { c06:{min:300,max:null}, c18:{n:20,pct:10}, c21:true },
+  '三角上放れ': { c06:{min:300,max:null}, c23:true },
+};
+
+function condDefById(id){ for(var i=0;i<CONDITIONS_DEF.length;i++) if(CONDITIONS_DEF[i].id===id) return CONDITIONS_DEF[i]; return null; }
+
+function buildConditionsFromState(uiState){
+  var out={};
+  CONDITIONS_DEF.forEach(function(def){
+    var s=uiState[def.id];
+    if(!s||!s.enabled) return;
+    out[def.id]=def.build(s);
+  });
+  return out;
+}
+
+function buildStateFromPreset(presetName, currentState){
+  var preset=PRESETS[presetName]||{};
+  var out={};
+  CONDITIONS_DEF.forEach(function(def){
+    var base={enabled:false};
+    def.fields.forEach(function(f){
+      base[f.key]=(f.type==='multi')?(f.default.slice?f.default.slice():[]):(f.type==='sector'?[]:f.default);
+    });
+    if(Object.prototype.hasOwnProperty.call(preset,def.id)){
+      var pv=preset[def.id]; base.enabled=true;
+      if(pv===true){} else { Object.keys(pv).forEach(function(k){ base[k]=pv[k]; }); }
+    }
+    out[def.id]=base;
+  });
+  return out;
+}
+
+function buildDefaultState(){ return buildStateFromPreset('__none__',{}); }
+
+function sortResults(results, colName, dir, cols){
+  var arr=results.slice();
+  function val(r){
+    if(colName==='code') return r.code;
+    if(colName==='name') return r.name;
+    if(colName==='count') return r.count;
+    if(colName==='tvalue'){
+      var ci=cols.indexOf('close'), vi=cols.indexOf('volume');
+      if(ci===-1||vi===-1) return null;
+      var c=r.row[ci], v=r.row[vi];
+      return (c===null||v===null)?null:c*v;
+    }
+    var idx=cols.indexOf(colName);
+    return idx===-1?null:r.row[idx];
+  }
+  arr.sort(function(a,b){
+    var va=val(a), vb=val(b);
+    if(va===null&&vb===null) return 0;
+    if(va===null) return 1;
+    if(vb===null) return -1;
+    var cmp;
+    if(typeof va==='string') cmp=va.localeCompare(vb);
+    else cmp=va-vb;
+    return dir==='asc'?cmp:-cmp;
+  });
+  return arr;
+}
+
+function rowGet(row, cols, name){ var i=cols.indexOf(name); return i===-1?null:row[i]; }
+
+/** 銘柄コードからYahoo!ファイナンス(日本)のチャートURLを生成。
+ *  6ヶ月・ローソク足・出来高付きで表示(3ヶ月以上の要望を満たす)。
+ *  チャート下部に出来高、ページ上部に当日の高値・安値・売買代金が表示される。
+ *  6ヶ月チャート上にはその期間の高値・安値の目盛りも表示される。 */
+function chartUrl(code){
+  return 'https://finance.yahoo.co.jp/quote/'+code+'.T/chart?trm=6m&styl=cndl';
+}
+
+function slopeGaugeSvg(slopePct, r2Pct){
+  if(slopePct===null||r2Pct===null||slopePct===undefined) return '<span class="mono" style="color:var(--text-muted)">—</span>';
+  var angle=Math.max(-45,Math.min(45,slopePct));
+  var color=slopePct>=0?'var(--up)':'var(--down)';
+  var opacity=Math.max(0.25,Math.min(1,r2Pct/100));
+  var dash=r2Pct<50?'2,2':'none';
+  var w=2+Math.round((r2Pct/100)*2);
+  return '<svg width="28" height="20" viewBox="0 0 28 20" style="vertical-align:middle;">'+
+    '<line x1="4" y1="16" x2="24" y2="4" stroke="'+color+'" stroke-width="'+w+'" '+
+    'stroke-dasharray="'+dash+'" stroke-linecap="round" opacity="'+opacity+'" '+
+    'transform="rotate('+(-angle)+' 14 10)"/></svg>';
+}
+
+function defaultTargetDate(now){
+  var d=new Date(now.getTime());
+  var after18=(d.getHours()>18)||(d.getHours()===18&&(d.getMinutes()>0||d.getSeconds()>0));
+  if(!after18){ d.setDate(d.getDate()-1); }
+  while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()-1); }
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+if(typeof module!=='undefined'&&module.exports){
+  module.exports={ CONDITIONS_DEF:CONDITIONS_DEF, PRESETS:PRESETS, SECTORS_33:SECTORS_33,
+    buildConditionsFromState:buildConditionsFromState, buildStateFromPreset:buildStateFromPreset,
+    buildDefaultState:buildDefaultState, sortResults:sortResults, rowGet:rowGet,
+    slopeGaugeSvg:slopeGaugeSvg, defaultTargetDate:defaultTargetDate, emptyToNull:emptyToNull, chartUrl:chartUrl };
+}
+
+if(typeof document!=='undefined'){
+(function(){
+  var uiState=buildDefaultState();
+  var lastResults=null,lastCols=null;
+  var sortCol='count',sortDir='desc';
+  var sectorModalCondId=null;
+  var memAuth=null;   // メモリ上の認証情報(localStorageが使えない環境=iOS Safariのfile://対策)
+
+  /* localStorageは環境によって使えない(iOS Safariのfile://等)ので、
+     読み書きを try/catch で包み、失敗してもメモリ上のmemAuthで動くようにする */
+  function lsGet(key){ try{return localStorage.getItem(key);}catch(e){return null;} }
+  function lsSet(key,val){ try{localStorage.setItem(key,val);}catch(e){} }
+  function lsRemove(key){ try{localStorage.removeItem(key);}catch(e){} }
+
+  function getAuth(){
+    if(memAuth) return memAuth;
+    try{ return JSON.parse(lsGet('pf_auth')||'null'); }catch(e){ return null; }
+  }
+  function setAuth(a){ memAuth=a; lsSet('pf_auth',JSON.stringify(a)); }
+  function clearAuth(){ memAuth=null; lsRemove('pf_auth'); }
+
+  function callApi(payload){
+    var body=Object.assign({auth:getAuth()},payload);
+    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();});
+  }
+
+  /* ログイン試行: localStorageを経由せず、入力値を直接使って通信する
+     (file://環境でlsSet直後のlsGetが空になる問題を回避) */
+  function tryLogin(id,pass){
+    var auth={id:id,pass:pass};
+    var today=new Date().toISOString().slice(0,10);
+    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({auth:auth,from:today,to:today,conditions:{}})})
+      .then(function(r){return r.json();})
+      .then(function(res){
+        if(res.error==='unauthorized'){throw new Error('IDまたはパスワードが違います。');}
+        if(res.error){throw new Error('通信エラー: '+res.error);}
+        setAuth(auth);   // 認証成功したら保持(メモリ+可能ならlocalStorage)
+        return true;
+      });
+  }
+
+  document.getElementById('loginForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var id=document.getElementById('loginId').value.trim();
+    var pass=document.getElementById('loginPass').value;
+    var errEl=document.getElementById('loginError'),btn=document.getElementById('loginBtn');
+    errEl.textContent='';btn.textContent='確認中...';btn.disabled=true;
+    tryLogin(id,pass).then(function(){showApp(id);})
+      .catch(function(err){errEl.textContent=err.message;})
+      .finally(function(){btn.textContent='ログイン';btn.disabled=false;});
+  });
+  document.getElementById('logoutBtn').addEventListener('click',function(){
+    clearAuth();document.getElementById('app').style.display='none';document.getElementById('loginGate').style.display='flex';
+  });
+  function showApp(id){
+    document.getElementById('loginGate').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('userIdLabel').textContent=id;
+    document.getElementById('headerMeta').textContent='株式スクリーニングツール';
+  }
+  var savedAuth=getAuth(); if(savedAuth){showApp(savedAuth.id);}
+
+  var defDate=defaultTargetDate(new Date());
+  document.getElementById('fromDate').value=defDate;
+  document.getElementById('toDate').value=defDate;
+
+  function fieldHtml(condId,f,val){
+    if(f.type==='select'){
+      return '<select data-cond="'+condId+'" data-key="'+f.key+'">'+f.options.map(function(o){
+        return '<option value="'+o+'"'+(String(o)===String(val)?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+    }
+    if(f.type==='select2'){
+      return '<select data-cond="'+condId+'" data-key="'+f.key+'">'+f.options.map(function(o){
+        return '<option value="'+o[0]+'"'+(String(o[0])===String(val)?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+    }
+    if(f.type==='select_or_input'){
+      // 値が選択肢に含まれていれば選択、なければ「任意」を選んで入力欄に表示
+      var inList=f.options.indexOf(val)>=0;
+      var optsHtml=f.options.map(function(o){
+        return '<option value="'+o+'"'+(String(o)===String(val)&&inList?' selected':'')+'>'+o+'</option>';
+      }).join('');
+      optsHtml+='<option value="__custom__"'+(!inList?' selected':'')+'>任意入力</option>';
+      var customStyle=inList?'display:none;':'';
+      return '<select data-cond="'+condId+'" data-key="'+f.key+'" data-soi="1">'+optsHtml+'</select>'+
+        '<input type="number" data-cond="'+condId+'" data-key="'+f.key+'" data-soi-input="1" value="'+(inList?'':val)+'" '+
+        'style="width:66px;'+customStyle+'" min="1">';
+    }
+    if(f.type==='multi'){
+      var arr=val||[];
+      return '<span class="multiWrap">'+f.options.map(function(o){
+        var checked=arr.indexOf(o[0])>=0?' checked':'';
+        return '<label><input type="checkbox" data-cond="'+condId+'" data-key="'+f.key+'" data-multi="'+o[0]+'"'+checked+'>'+o[1]+'</label>';
+      }).join('')+'</span>';
+    }
+    if(f.type==='sector'){
+      var arr2=val||[];
+      var lbl=arr2.length?('選択中: '+arr2.length+'業種'):'業種を選択';
+      return '<button type="button" class="sectorBtn" data-sector-cond="'+condId+'">'+lbl+'</button>';
+    }
+    var v=(val===null||val===undefined)?'':val;
+    return '<input type="number" data-cond="'+condId+'" data-key="'+f.key+'" value="'+v+'">';
+  }
+  function renderConditionCard(def){
+    var s=uiState[def.id]; var labelHtml=def.label;
+    def.fields.forEach(function(f){ labelHtml=labelHtml.replace('<'+f.key.toUpperCase()+'>',fieldHtml(def.id,f,s[f.key])); });
+    var num=def.id.replace('c','');
+    return '<div class="condCard'+(s.enabled?'':' disabled')+'" id="card_'+def.id+'">'+
+      '<div class="toggle"><input type="checkbox" data-toggle="'+def.id+'"'+(s.enabled?' checked':'')+'>'+
+      '<div class="track"></div><div class="knob"></div></div>'+
+      '<div class="num">'+num+'</div><div class="body"><div class="label">'+labelHtml+'</div></div></div>';
+  }
+  function renderAllConditions(){
+    var basic=CONDITIONS_DEF.filter(function(d){return d.group==='basic';});
+    var adv=CONDITIONS_DEF.filter(function(d){return d.group==='adv';});
+    document.getElementById('basicCond').innerHTML=basic.map(renderConditionCard).join('');
+    document.getElementById('advCond').innerHTML=adv.map(renderConditionCard).join('');
+    bindConditionEvents();
+  }
+  function bindConditionEvents(){
+    document.querySelectorAll('[data-toggle]').forEach(function(el){
+      el.addEventListener('change',function(){
+        uiState[el.dataset.toggle].enabled=el.checked;
+        document.getElementById('card_'+el.dataset.toggle).classList.toggle('disabled',!el.checked);
+      });
+    });
+    document.querySelectorAll('[data-cond]').forEach(function(el){
+      if(el.dataset.multi) return;
+      if(el.dataset.soi){
+        // select_or_input のセレクト部分
+        el.addEventListener('change',function(){
+          var cond=el.dataset.cond,key=el.dataset.key;
+          var input=document.querySelector('[data-soi-input][data-cond="'+cond+'"][data-key="'+key+'"]');
+          if(el.value==='__custom__'){
+            if(input){ input.style.display=''; input.focus();
+              var iv=parseFloat(input.value); uiState[cond][key]=isNaN(iv)?'':iv; }
+          } else {
+            if(input) input.style.display='none';
+            uiState[cond][key]=parseFloat(el.value);
+          }
+        });
+        return;
+      }
+      if(el.dataset.soiInput){
+        el.addEventListener('input',function(){
+          var iv=parseFloat(el.value);
+          uiState[el.dataset.cond][el.dataset.key]=isNaN(iv)?'':iv;
+        });
+        return;
+      }
+      el.addEventListener('change',function(){
+        var raw=el.value,num=parseFloat(raw);
+        var v=raw===''?'':(isNaN(num)?raw:num);
+        if(el.tagName==='SELECT'&&(raw==='true'||raw==='false')) v=(raw==='true');
+        uiState[el.dataset.cond][el.dataset.key]=v;
+      });
+    });
+    document.querySelectorAll('[data-multi]').forEach(function(el){
+      el.addEventListener('change',function(){
+        var cond=el.dataset.cond,key=el.dataset.key,mv=el.dataset.multi;
+        var arr=uiState[cond][key]||[];
+        if(el.checked){ if(arr.indexOf(mv)<0) arr.push(mv); }
+        else { arr=arr.filter(function(x){return x!==mv;}); }
+        uiState[cond][key]=arr;
+      });
+    });
+    document.querySelectorAll('[data-sector-cond]').forEach(function(el){
+      el.addEventListener('click',function(){ openSectorModal(el.dataset.sectorCond); });
+    });
+  }
+  renderAllConditions();
+
+  document.querySelectorAll('.sectionLabel').forEach(function(el){
+    el.addEventListener('click',function(){
+      el.classList.toggle('collapsed');
+      var t=document.getElementById(el.dataset.target);
+      t.style.display=el.classList.contains('collapsed')?'none':'grid';
+    });
+  });
+
+  var presetRow=document.getElementById('presetRow');
+  Object.keys(PRESETS).forEach(function(name){
+    var chip=document.createElement('button');
+    chip.className='chip';chip.textContent=name;
+    chip.addEventListener('click',function(){
+      document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+      chip.classList.add('active');
+      uiState=buildStateFromPreset(name,uiState);
+      renderAllConditions();
+    });
+    presetRow.appendChild(chip);
+  });
+
+  document.getElementById('resetBtn').addEventListener('click',function(){
+    uiState=buildDefaultState();
+    document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+    var d=defaultTargetDate(new Date());
+    document.getElementById('fromDate').value=d;
+    document.getElementById('toDate').value=d;
+    renderAllConditions();
+    lastResults=null;lastCols=null;
+    document.getElementById('resultsMeta').style.display='none';
+    document.getElementById('resultsArea').innerHTML='<div class="emptyState"><div class="big">🔍</div>条件を選んで「検索」を押すと、ここに該当銘柄が表示されます。</div>';
+    document.getElementById('errorBox').style.display='none';
+  });
+
+  var sectorGrid=document.getElementById('sectorGrid');
+  sectorGrid.innerHTML=SECTORS_33.map(function(s){
+    return '<label><input type="checkbox" value="'+s+'">'+s+'</label>';
+  }).join('');
+  function openSectorModal(condId){
+    sectorModalCondId=condId;
+    var selected=uiState[condId].sectors||[];
+    sectorGrid.querySelectorAll('input').forEach(function(inp){ inp.checked=selected.indexOf(inp.value)>=0; });
+    document.getElementById('sectorModal').classList.add('show');
+  }
+  document.getElementById('sectorApply').addEventListener('click',function(){
+    var sel=[];
+    sectorGrid.querySelectorAll('input:checked').forEach(function(inp){ sel.push(inp.value); });
+    uiState[sectorModalCondId].sectors=sel;
+    document.getElementById('sectorModal').classList.remove('show');
+    renderAllConditions();
+  });
+  document.getElementById('sectorClear').addEventListener('click',function(){
+    sectorGrid.querySelectorAll('input').forEach(function(inp){ inp.checked=false; });
+  });
+  document.getElementById('sectorModal').addEventListener('click',function(e){
+    if(e.target===this) this.classList.remove('show');
+  });
+
+  function loadSavedList(){ var r=lsGet('pf_saved_conditions'); return r?JSON.parse(r):{}; }
+  function refreshSavedSelect(){
+    var saved=loadSavedList(),sel=document.getElementById('savedSelect');
+    sel.innerHTML='<option value="">保存した検索条件を呼び出し...</option>'+
+      Object.keys(saved).map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+  }
+  refreshSavedSelect();
+  document.getElementById('saveCondBtn').addEventListener('click',function(){
+    var name=prompt('保存する名前を入力してください'); if(!name) return;
+    var saved=loadSavedList(); saved[name]=uiState;
+    lsSet('pf_saved_conditions',JSON.stringify(saved)); refreshSavedSelect();
+  });
+  document.getElementById('deleteCondBtn').addEventListener('click',function(){
+    var name=document.getElementById('savedSelect').value; if(!name) return;
+    if(!confirm('「'+name+'」を削除しますか？')) return;
+    var saved=loadSavedList(); delete saved[name];
+    lsSet('pf_saved_conditions',JSON.stringify(saved)); refreshSavedSelect();
+  });
+  document.getElementById('savedSelect').addEventListener('change',function(){
+    var name=this.value; if(!name) return;
+    var saved=loadSavedList();
+    if(saved[name]){ uiState=saved[name]; renderAllConditions(); }
+  });
+
+  document.getElementById('searchBtn').addEventListener('click',function(){
+    var from=document.getElementById('fromDate').value;
+    var to=document.getElementById('toDate').value;
+    var conditions=buildConditionsFromState(uiState);
+    var errBox=document.getElementById('errorBox'); errBox.style.display='none';
+    document.getElementById('resultsArea').innerHTML='<div class="loadingState">検索中...</div>';
+    document.getElementById('resultsMeta').style.display='none';
+    callApi({from:from,to:to,conditions:conditions}).then(function(res){
+      if(res.error) throw new Error(res.error==='unauthorized'?'ログインが無効です。再度ログインしてください。':res.error);
+      lastResults=res.results; lastCols=res.cols;
+      document.getElementById('metaDays').textContent=res.datesUsed.length;
+      document.getElementById('metaHits').textContent=res.results.length;
+      document.getElementById('resultsMeta').style.display='flex';
+      sortCol='count'; sortDir='desc';
+      renderTable();
+    }).catch(function(err){
+      document.getElementById('resultsArea').innerHTML='';
+      errBox.textContent=err.message; errBox.style.display='block';
+    });
+  });
+
+  function fmtNum(v,digits){ if(v===null||v===undefined) return '—'; return (digits?v.toFixed(digits):Math.round(v)).toLocaleString(); }
+
+  /** 売買代金を読みやすく億円/百万円で表示 */
+  function fmtOku(yen){
+    if(yen===null||yen===undefined) return '—';
+    if(yen>=1e8) return (yen/1e8).toFixed(1)+'億';
+    if(yen>=1e6) return (yen/1e6).toFixed(0)+'百万';
+    return Math.round(yen).toLocaleString();
+  }
+
+  var TABLE_COLS=[
+    ['コード','code',function(r,g){return r.code;}],
+    ['銘柄名','name',function(r,g){
+      var flags='';
+      if(g('highBreakAll')===1) flags+='<span class="flag">高値更新</span>';
+      if(g('breakoutTri')===1) flags+='<span class="flag">上放れ</span>';
+      else if(g('breakHigh')===1) flags+='<span class="flag">ブレイク</span>';
+      else if(g('triApex')===1) flags+='<span class="flag">保ち合い</span>';
+      return r.name+flags;
+    }],
+    ['売買代金','tvalue',function(r,g){var c=g('close'),v=g('volume');return (c===null||v===null)?'—':fmtOku(c*v);}],
+    ['回数','count',function(r,g){return r.count;}],
+    ['傾き','slopePct',function(r,g){return slopeGaugeSvg(g('slopePct'),g('r2Pct'));}],
+    ['株価','close',function(r,g){return fmtNum(g('close'));}],
+    ['出来高','volume',function(r,g){return fmtNum(g('volume'));}],
+    ['連騰','upStreak',function(r,g){var u=g('upStreak');return u>0?'<span class="up">'+u+'</span>':'0';}],
+    ['20日騰落','ret20',function(r,g){var v=g('ret20');return v===null?'—':'<span class="'+(v>=0?'up':'down')+'">'+(v>=0?'+':'')+v.toFixed(1)+'%</span>';}],
+    ['週陽/陰','wW',function(r,g){return g('wW')+'/'+g('wB');}],
+    ['月陽/陰','mW',function(r,g){return g('mW')+'/'+g('mB');}],
+    ['年初来','ytdPct',function(r,g){var v=g('ytdPct');return v===null?'—':'<span class="'+(v>=0?'up':'down')+'">'+(v>=0?'+':'')+v.toFixed(1)+'%</span>';}],
+  ];
+
+  function renderTable(){
+    if(!lastResults||lastResults.length===0){
+      document.getElementById('resultsArea').innerHTML='<div class="emptyState"><div class="big">🔍</div>条件に一致する銘柄がありませんでした。</div>';
+      return;
+    }
+    var sorted=sortResults(lastResults,sortCol,sortDir,lastCols);
+    var thead='<tr>'+TABLE_COLS.map(function(col){
+      var sortedCls=(col[1]===sortCol)?' class="sorted"':'';
+      var arrow=(col[1]===sortCol)?(sortDir==='asc'?'▲':'▼'):'▲▼';
+      return '<th data-sortkey="'+col[1]+'"'+sortedCls+'>'+col[0]+'<span class="sortArrow">'+arrow+'</span></th>';
+    }).join('')+'</tr>';
+    var rows=sorted.map(function(r){
+      var g=function(name){return rowGet(r.row,lastCols,name);};
+      var url=chartUrl(r.code);
+      return '<tr data-chart="'+url+'" style="cursor:pointer;">'+TABLE_COLS.map(function(col){ return '<td>'+col[2](r,g)+'</td>'; }).join('')+'</tr>';
+    }).join('');
+    document.getElementById('resultsArea').innerHTML='<div class="tableWrap"><table><thead>'+thead+'</thead><tbody>'+rows+'</tbody></table></div>';
+    document.querySelectorAll('tbody tr[data-chart]').forEach(function(tr){
+      tr.addEventListener('click',function(){ window.open(tr.dataset.chart,'_blank','noopener'); });
+    });
+    document.querySelectorAll('thead th[data-sortkey]').forEach(function(th){
+      th.addEventListener('click',function(){
+        var key=th.dataset.sortkey;
+        if(sortCol===key){ sortDir=(sortDir==='asc')?'desc':'asc'; }
+        else { sortCol=key; sortDir=(key==='code'||key==='name')?'asc':'desc'; }
+        renderTable();
+      });
+    });
+  }
+})();
+}
+</script>
+</body>
+</html>
