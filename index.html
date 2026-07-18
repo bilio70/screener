@@ -51,7 +51,7 @@
   .btn.accent{background:var(--accent);color:#0c2523;}
   .loginError{color:var(--up);font-size:13px;margin:8px 0 0;min-height:1.2em;}
 
-  #app{display:none;max-width:1000px;margin:0 auto;padding:0 16px 80px;}
+  #app{max-width:1000px;margin:0 auto;padding:0 16px 80px;}
   header.top{position:sticky;top:0;z-index:20;background:rgba(27,36,51,.92);backdrop-filter:blur(6px);
     display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border);}
   header.top .wordmark{font-size:22px;font-weight:900;margin:0;}
@@ -158,25 +158,9 @@
 </head>
 <body>
 
-<div id="loginGate">
-  <div class="loginCard">
-    <p class="wordmark">Screener</p>
-    <p class="tagline">株式スクリーニングツール</p>
-    <form id="loginForm">
-      <div class="field"><label for="loginId">ID</label>
-        <input type="text" id="loginId" autocomplete="username" required></div>
-      <div class="field"><label for="loginPass">パスワード</label>
-        <input type="password" id="loginPass" autocomplete="current-password" required></div>
-      <button type="submit" class="btn full" id="loginBtn">ログイン</button>
-      <p class="loginError" id="loginError"></p>
-    </form>
-  </div>
-</div>
-
 <div id="app">
   <header class="top">
-    <div><p class="wordmark">Screener</p><p class="meta" id="headerMeta">—</p></div>
-    <div class="userbox"><span id="userIdLabel"></span><button id="logoutBtn">ログアウト</button></div>
+    <div><p class="wordmark">Screener</p><p class="meta" id="headerMeta">株式スクリーニングツール</p></div>
   </header>
 
   <div class="toolbar">
@@ -421,63 +405,19 @@ if(typeof document!=='undefined'){
   var lastResults=null,lastCols=null;
   var sortCol='count',sortDir='desc';
   var sectorModalCondId=null;
-  var memAuth=null;   // メモリ上の認証情報(localStorageが使えない環境=iOS Safariのfile://対策)
 
-  /* localStorageは環境によって使えない(iOS Safariのfile://等)ので、
-     読み書きを try/catch で包み、失敗してもメモリ上のmemAuthで動くようにする */
+  /* localStorageは環境によって使えない(iOS Safariのfile://等)ので、読み書きをtry/catchで包む */
   function lsGet(key){ try{return localStorage.getItem(key);}catch(e){return null;} }
   function lsSet(key,val){ try{localStorage.setItem(key,val);}catch(e){} }
   function lsRemove(key){ try{localStorage.removeItem(key);}catch(e){} }
 
-  function getAuth(){
-    if(memAuth) return memAuth;
-    try{ return JSON.parse(lsGet('pf_auth')||'null'); }catch(e){ return null; }
-  }
-  function setAuth(a){ memAuth=a; lsSet('pf_auth',JSON.stringify(a)); }
-  function clearAuth(){ memAuth=null; lsRemove('pf_auth'); }
-
+  /* 認証は廃止。URLを開けば誰でもすぐ使える。 */
   function callApi(payload){
-    var body=Object.assign({auth:getAuth()},payload);
-    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)})
+    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
       .then(function(r){return r.json();});
   }
 
-  /* ログイン試行: localStorageを経由せず、入力値を直接使って通信する
-     (file://環境でlsSet直後のlsGetが空になる問題を回避) */
-  function tryLogin(id,pass){
-    var auth={id:id,pass:pass};
-    var today=new Date().toISOString().slice(0,10);
-    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({auth:auth,from:today,to:today,conditions:{}})})
-      .then(function(r){return r.json();})
-      .then(function(res){
-        if(res.error==='unauthorized'){throw new Error('IDまたはパスワードが違います。');}
-        if(res.error){throw new Error('通信エラー: '+res.error);}
-        setAuth(auth);   // 認証成功したら保持(メモリ+可能ならlocalStorage)
-        return true;
-      });
-  }
-
-  document.getElementById('loginForm').addEventListener('submit',function(e){
-    e.preventDefault();
-    var id=document.getElementById('loginId').value.trim();
-    var pass=document.getElementById('loginPass').value;
-    var errEl=document.getElementById('loginError'),btn=document.getElementById('loginBtn');
-    errEl.textContent='';btn.textContent='確認中...';btn.disabled=true;
-    tryLogin(id,pass).then(function(){showApp(id);})
-      .catch(function(err){errEl.textContent=err.message;})
-      .finally(function(){btn.textContent='ログイン';btn.disabled=false;});
-  });
-  document.getElementById('logoutBtn').addEventListener('click',function(){
-    clearAuth();document.getElementById('app').style.display='none';document.getElementById('loginGate').style.display='flex';
-  });
-  function showApp(id){
-    document.getElementById('loginGate').style.display='none';
-    document.getElementById('app').style.display='block';
-    document.getElementById('userIdLabel').textContent=id;
-    document.getElementById('headerMeta').textContent='株式スクリーニングツール';
-  }
-  var savedAuth=getAuth(); if(savedAuth){showApp(savedAuth.id);}
+  document.getElementById('app').style.display='block';
 
   var defDate=defaultTargetDate(new Date());
   document.getElementById('fromDate').value=defDate;
@@ -678,7 +618,7 @@ if(typeof document!=='undefined'){
     document.getElementById('resultsArea').innerHTML='<div class="loadingState">検索中...</div>';
     document.getElementById('resultsMeta').style.display='none';
     callApi({from:from,to:to,conditions:conditions}).then(function(res){
-      if(res.error) throw new Error(res.error==='unauthorized'?'ログインが無効です。再度ログインしてください。':res.error);
+      if(res.error) throw new Error(res.error);
       lastResults=res.results; lastCols=res.cols;
       document.getElementById('metaDays').textContent=res.datesUsed.length;
       document.getElementById('metaHits').textContent=res.results.length;
