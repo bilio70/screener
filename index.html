@@ -51,7 +51,7 @@
   .btn.accent{background:var(--accent);color:#0c2523;}
   .loginError{color:var(--up);font-size:13px;margin:8px 0 0;min-height:1.2em;}
 
-  #app{max-width:1000px;margin:0 auto;padding:0 16px 80px;}
+  #app{display:none;max-width:1000px;margin:0 auto;padding:0 16px 80px;}
   header.top{position:sticky;top:0;z-index:20;background:rgba(27,36,51,.92);backdrop-filter:blur(6px);
     display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border);}
   header.top .wordmark{font-size:22px;font-weight:900;margin:0;}
@@ -157,10 +157,28 @@
 </style>
 </head>
 <body>
+<div id="tlNav" style="position:sticky;top:0;z-index:99;display:flex;flex-wrap:wrap;align-items:center;min-height:34px;padding:6px 14px;background:#0f1420;border-bottom:2px solid #4f8cff;font-size:13px;font-family:sans-serif"><b style="color:#8fa0bd;margin-right:12px">ページ:</b><a href="http://127.0.0.1:8765/plan" target="_blank" style="color:#4f8cff;text-decoration:none;margin-right:16px;font-weight:600">📋 70 Trade plan</a><a href="http://127.0.0.1:8765/" target="_blank" style="color:#4f8cff;text-decoration:none;margin-right:16px;font-weight:600">🧪 バックテスト</a><a href="http://127.0.0.1:8765/compass" target="_blank" style="color:#4f8cff;text-decoration:none;margin-right:16px;font-weight:600">📈 相場トレンド</a></div>
+
+
+<div id="loginGate">
+  <div class="loginCard">
+    <p class="wordmark">Screener</p>
+    <p class="tagline">株式スクリーニングツール</p>
+    <form id="loginForm">
+      <div class="field"><label for="loginId">ID</label>
+        <input type="text" id="loginId" autocomplete="username" required></div>
+      <div class="field"><label for="loginPass">パスワード</label>
+        <input type="password" id="loginPass" autocomplete="current-password" required></div>
+      <button type="submit" class="btn full" id="loginBtn">ログイン</button>
+      <p class="loginError" id="loginError"></p>
+    </form>
+  </div>
+</div>
 
 <div id="app">
   <header class="top">
-    <div><p class="wordmark">Screener</p><p class="meta" id="headerMeta">株式スクリーニングツール</p></div>
+    <div><p class="wordmark">Screener</p><p class="meta" id="headerMeta">—</p></div>
+    <div class="userbox"><span id="userIdLabel"></span><button id="logoutBtn">ログアウト</button></div>
   </header>
 
   <div class="toolbar">
@@ -251,8 +269,8 @@ var CONDITIONS_DEF = [
     fields:[{key:'code',type:'select2',options:[[2,'貸借銘柄'],[1,'信用銘柄'],[0,'信用不可銘柄']],default:2}],
     build:function(v){return {code:v.code};} },
   { id:'c17', group:'basic', label:'市場区分が<MARKETS>',
-    fields:[{key:'markets',type:'multi',options:[['プライム','プライム'],['スタンダード','スタンダード'],['グロース','グロース']],default:['プライム']}],
-    build:function(v){return {markets:(v.markets&&v.markets.length)?v.markets:['プライム','スタンダード','グロース']};} },
+    fields:[{key:'markets',type:'multi',options:[['プライム','プライム'],['スタンダード','スタンダード'],['グロース','グロース'],['ETF','ETF'],['REIT','REIT']],default:['プライム']}],
+    build:function(v){return {markets:(v.markets&&v.markets.length)?v.markets:['プライム','スタンダード','グロース','ETF','REIT']};} },
   { id:'c19', group:'basic', label:'業種が<SECTORS>',
     fields:[{key:'sectors',type:'sector',default:[]}],
     build:function(v){return {sectors:v.sectors||[]};} },
@@ -261,8 +279,9 @@ var CONDITIONS_DEF = [
     build:function(v){return {n:v.n,pct:v.pct};} },
   { id:'c24', group:'basic', label:'連騰(前日比プラス)が<N>営業日以上連続',
     fields:[{key:'n',type:'number',default:3,min:1}], build:function(v){return {n:v.n};} },
-  { id:'c20', group:'basic', label:'上場来高値を更新',
-    fields:[], build:function(){return true;} },
+  { id:'c20', group:'basic', label:'上場来高値を更新（<DAYS>）',
+    fields:[{key:'days',type:'select2',options:[[1,'当日のみ'],[3,'直近3営業日'],[5,'直近5営業日'],[10,'直近10営業日'],[20,'直近20営業日']],default:1}],
+    build:function(v){return {days:Number(v.days)||1};} },
   { id:'c21', group:'basic', label:'高値ブレイク(直近20日の高値を終値で上抜け)',
     fields:[], build:function(){return true;} },
   { id:'c22', group:'basic', label:'三角保ち合い(値幅収束中)。値幅<MAXR>%以下に限定(空欄可)',
@@ -403,21 +422,79 @@ if(typeof document!=='undefined'){
 (function(){
   var uiState=buildDefaultState();
   var lastResults=null,lastCols=null;
+  setTimeout(function(){try{
+    var s=JSON.parse(localStorage.getItem('tl_lastSearch')||'null');
+    if(s&&Date.now()-s.ts<86400000&&s.results&&s.results.length){
+      lastResults=s.results;lastCols=s.cols;
+      var md=document.getElementById('metaDays'); if(md) md.textContent=s.days||'-';
+      var mh=document.getElementById('metaHits'); if(mh) mh.textContent=s.results.length;
+      var rm=document.getElementById('resultsMeta'); if(rm) rm.style.display='flex';
+      renderTable();
+    }
+  }catch(e){}},400);
+  setTimeout(function(){
+    var rb=document.getElementById('resetBtn');
+    if(rb) rb.addEventListener('click',function(){try{localStorage.removeItem('tl_lastSearch');}catch(e){}});
+  },400);
   var sortCol='count',sortDir='desc';
   var sectorModalCondId=null;
+  var memAuth=null;   // メモリ上の認証情報(localStorageが使えない環境=iOS Safariのfile://対策)
 
-  /* localStorageは環境によって使えない(iOS Safariのfile://等)ので、読み書きをtry/catchで包む */
+  /* localStorageは環境によって使えない(iOS Safariのfile://等)ので、
+     読み書きを try/catch で包み、失敗してもメモリ上のmemAuthで動くようにする */
   function lsGet(key){ try{return localStorage.getItem(key);}catch(e){return null;} }
   function lsSet(key,val){ try{localStorage.setItem(key,val);}catch(e){} }
   function lsRemove(key){ try{localStorage.removeItem(key);}catch(e){} }
 
-  /* 認証は廃止。URLを開けば誰でもすぐ使える。 */
+  function getAuth(){
+    if(memAuth) return memAuth;
+    try{ return JSON.parse(lsGet('pf_auth')||'null'); }catch(e){ return null; }
+  }
+  function setAuth(a){ memAuth=a; lsSet('pf_auth',JSON.stringify(a)); }
+  function clearAuth(){ memAuth=null; lsRemove('pf_auth'); }
+
   function callApi(payload){
-    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+    var body=Object.assign({auth:getAuth()},payload);
+    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)})
       .then(function(r){return r.json();});
   }
 
-  document.getElementById('app').style.display='block';
+  /* ログイン試行: localStorageを経由せず、入力値を直接使って通信する
+     (file://環境でlsSet直後のlsGetが空になる問題を回避) */
+  function tryLogin(id,pass){
+    var auth={id:id,pass:pass};
+    var today=new Date().toISOString().slice(0,10);
+    return fetch(GAS_WEBAPP_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({auth:auth,from:today,to:today,conditions:{}})})
+      .then(function(r){return r.json();})
+      .then(function(res){
+        if(res.error==='unauthorized'){throw new Error('IDまたはパスワードが違います。');}
+        if(res.error){throw new Error('通信エラー: '+res.error);}
+        setAuth(auth);   // 認証成功したら保持(メモリ+可能ならlocalStorage)
+        return true;
+      });
+  }
+
+  document.getElementById('loginForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var id=document.getElementById('loginId').value.trim();
+    var pass=document.getElementById('loginPass').value;
+    var errEl=document.getElementById('loginError'),btn=document.getElementById('loginBtn');
+    errEl.textContent='';btn.textContent='確認中...';btn.disabled=true;
+    tryLogin(id,pass).then(function(){showApp(id);})
+      .catch(function(err){errEl.textContent=err.message;})
+      .finally(function(){btn.textContent='ログイン';btn.disabled=false;});
+  });
+  document.getElementById('logoutBtn').addEventListener('click',function(){
+    clearAuth();document.getElementById('app').style.display='none';document.getElementById('loginGate').style.display='flex';
+  });
+  function showApp(id){
+    document.getElementById('loginGate').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('userIdLabel').textContent=id;
+    document.getElementById('headerMeta').textContent='株式スクリーニングツール';
+  }
+  var savedAuth=getAuth(); if(savedAuth){showApp(savedAuth.id);}
 
   var defDate=defaultTargetDate(new Date());
   document.getElementById('fromDate').value=defDate;
@@ -618,8 +695,9 @@ if(typeof document!=='undefined'){
     document.getElementById('resultsArea').innerHTML='<div class="loadingState">検索中...</div>';
     document.getElementById('resultsMeta').style.display='none';
     callApi({from:from,to:to,conditions:conditions}).then(function(res){
-      if(res.error) throw new Error(res.error);
+      if(res.error) throw new Error(res.error==='unauthorized'?'ログインが無効です。再度ログインしてください。':res.error);
       lastResults=res.results; lastCols=res.cols;
+      try{localStorage.setItem('tl_lastSearch',JSON.stringify({ts:Date.now(),results:res.results,cols:res.cols,days:res.datesUsed.length}));}catch(e){}
       document.getElementById('metaDays').textContent=res.datesUsed.length;
       document.getElementById('metaHits').textContent=res.results.length;
       document.getElementById('resultsMeta').style.display='flex';
@@ -642,16 +720,18 @@ if(typeof document!=='undefined'){
   }
 
   var TABLE_COLS=[
-    ['コード','code',function(r,g){return r.code;}],
+    ['コード','code',function(r,g){return '<span class="tlCode"><a href="https://jp.tradingview.com/chart/?symbol=TSE%3A'+r.code+'" target="_blank" onclick="event.stopPropagation()">'+r.code+'</a></span>';}],
     ['銘柄名','name',function(r,g){
       var flags='';
       if(g('highBreakAll')===1) flags+='<span class="flag">高値更新</span>';
       if(g('breakoutTri')===1) flags+='<span class="flag">上放れ</span>';
       else if(g('breakHigh')===1) flags+='<span class="flag">ブレイク</span>';
       else if(g('triApex')===1) flags+='<span class="flag">保ち合い</span>';
-      return r.name+flags;
+      return '<span class="tlName"><a href="https://finance.yahoo.co.jp/quote/'+r.code+'.T" target="_blank" onclick="event.stopPropagation()">'+r.name+'</a></span>'+flags;
     }],
     ['売買代金','tvalue',function(r,g){var c=g('close'),v=g('volume');return (c===null||v===null)?'—':fmtOku(c*v);}],
+    ['1年チャート','tlchart',function(r,g){return '<div class="tlmini" data-code="'+r.code+'"></div>';}],
+    ['計画','tlplan',function(r,g){return '<button class="tlPlanBtn" data-code="'+r.code+'" data-name="'+encodeURIComponent(r.name)+'">＋追加</button>';}],
     ['回数','count',function(r,g){return r.count;}],
     ['傾き','slopePct',function(r,g){return slopeGaugeSvg(g('slopePct'),g('r2Pct'));}],
     ['株価','close',function(r,g){return fmtNum(g('close'));}],
@@ -680,6 +760,7 @@ if(typeof document!=='undefined'){
       return '<tr data-chart="'+url+'" style="cursor:pointer;">'+TABLE_COLS.map(function(col){ return '<td>'+col[2](r,g)+'</td>'; }).join('')+'</tr>';
     }).join('');
     document.getElementById('resultsArea').innerHTML='<div class="tableWrap"><table><thead>'+thead+'</thead><tbody>'+rows+'</tbody></table></div>';
+    if(window.tlEnhance) tlEnhance();
     document.querySelectorAll('tbody tr[data-chart]').forEach(function(tr){
       tr.addEventListener('click',function(){ window.open(tr.dataset.chart,'_blank','noopener'); });
     });
@@ -693,6 +774,63 @@ if(typeof document!=='undefined'){
     });
   }
 })();
+}
+</script>
+<style>
+body{zoom:1.12}
+.tableWrap{max-height:74vh;overflow:auto}
+thead th{position:sticky;top:0;background:#12161f;z-index:5}
+.tableWrap th,.tableWrap td{padding:6px 6px !important;font-size:12.5px}
+.tlCode a,.tlName a{color:inherit;text-decoration:none;border-bottom:1px dotted #4f8cff}
+.tlCode a:hover,.tlName a:hover{color:#4f8cff}
+.tlPlanBtn{padding:3px 8px !important;font-size:11px !important}
+</style>
+<style>
+.tlPlanBtn{background:#1f6f4a;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tlPlanBtn:hover{background:#2a8f60}
+.tlmini{min-width:150px}
+.tlmini canvas{display:block;background:rgba(255,255,255,.05);border-radius:4px}
+.tlcap{font-size:10px;color:#8fa0bd;line-height:1.35;text-align:left;white-space:nowrap}
+</style>
+<script>
+var TL_BASE=(location.port==='8765')?'':'http://127.0.0.1:8765';
+window.tlEnhance=function(){
+  document.querySelectorAll('.tlPlanBtn').forEach(function(b){
+    if(b._tl) return; b._tl=1;
+    b.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      window.open(TL_BASE+'/plan?addcode='+b.dataset.code+'&addname='+(b.dataset.name||''),'_blank');
+    });
+  });
+  var els=Array.prototype.slice.call(document.querySelectorAll('.tlmini')).filter(function(e){return !e._tl;});
+  var active=0;
+  function pump(){
+    while(active<3&&els.length){
+      var el=els.shift(); el._tl=1; active++;
+      (function(el){
+        fetch(TL_BASE+'/api/mini_chart?code='+el.dataset.code)
+          .then(function(r){return r.json();})
+          .then(function(d){ if(!d.error) tlDraw(el,d); else el.innerHTML='<span class="tlcap">—</span>'; })
+          .catch(function(){ el.innerHTML='<span class="tlcap">バックテスト起動中のみ表示</span>'; })
+          .finally(function(){ active--; pump(); });
+      })(el);
+    }
+  }
+  pump();
+};
+function tlDraw(el,d){
+  var cv=document.createElement('canvas'); cv.width=170; cv.height=50;
+  var ctx=cv.getContext('2d'), W=170, H=50, vh=12;
+  var c=d.c, v=d.v;
+  var cmin=Math.min.apply(null,c), cmax=Math.max.apply(null,c), vmax=Math.max.apply(null,v.concat([1]));
+  ctx.fillStyle='rgba(143,160,189,.45)';
+  v.forEach(function(x,i){var bw=Math.max(1,W/v.length-.5);var bh=vh*x/vmax;ctx.fillRect(W*i/v.length,H-bh,bw,bh);});
+  ctx.strokeStyle='#4f8cff'; ctx.lineWidth=1.3; ctx.beginPath();
+  c.forEach(function(x,i){var px=W*i/(c.length-1);var py=(H-vh-3)*(1-(x-cmin)/((cmax-cmin)||1))+2; i?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+  ctx.stroke();
+  var cap=document.createElement('div'); cap.className='tlcap';
+  cap.innerHTML='高'+d.hi.toLocaleString()+'('+d.hi_d.slice(5)+') 安'+d.lo.toLocaleString()+'('+d.lo_d.slice(5)+')<br>出来高max '+d.mv.toLocaleString()+'('+d.mv_d.slice(5)+')';
+  el.innerHTML=''; el.appendChild(cv); el.appendChild(cap);
 }
 </script>
 </body>
